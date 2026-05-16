@@ -46,6 +46,10 @@ These are baked into the JS at **Docker build time**. Changing them requires re-
 | `SSH_PORT` | No | Default `22` |
 | `GHCR_PULL_TOKEN` | If package is private | PAT with `read:packages` for VM `docker pull` |
 
+| Variable | When | Purpose |
+|----------|------|---------|
+| `ENABLE_SSH_DEPLOY` | Optional | Set to `true` to run the SSH deploy job (after `SSH_*` secrets exist) |
+
 `GITHUB_TOKEN` is provided automatically for pushing images to GHCR.
 
 ### 4. GHCR package visibility (fix `docker pull` → **denied**)

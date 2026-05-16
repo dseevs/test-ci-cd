@@ -52,8 +52,8 @@ jobs:
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
-    # Skips until SSH_HOST (and related) secrets are configured in the repo
-    if: github.ref == 'refs/heads/main' && secrets.SSH_HOST != ''
+    # Set repo Variable ENABLE_SSH_DEPLOY=true when SSH_* secrets are ready (cannot use secrets in job if)
+    if: github.ref == 'refs/heads/main' && vars.ENABLE_SSH_DEPLOY == 'true'
     steps:
       - name: Deploy to VM via SSH
         uses: appleboy/ssh-action@v1.2.0
