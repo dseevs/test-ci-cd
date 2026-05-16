@@ -48,12 +48,35 @@ These are baked into the JS at **Docker build time**. Changing them requires re-
 
 `GITHUB_TOKEN` is provided automatically for pushing images to GHCR.
 
-### 4. GHCR package visibility
+### 4. GHCR package visibility (fix `docker pull` → **denied**)
 
-After the first successful workflow:
+GHCR images are **private by default**. Anonymous `docker pull` fails with `denied`.
 
-1. GitHub → **Packages** → your package
-2. **Package settings** → set **Public** (simplest) or **Private** (then set `GHCR_PULL_TOKEN` on VM pull)
+**Option A — Public package (easiest for test-ci-cd):**
+
+1. Open: https://github.com/users/dseevs/packages/container/test-ci-cd/settings  
+2. **Change visibility** → **Public**
+3. Wait ~1 minute, then:
+
+```bash
+bash scripts/ghcr-pull-run.sh
+```
+
+**Option B — Stay private, log in on your machine:**
+
+```bash
+# Create a PAT: GitHub → Settings → Developer settings → Tokens → read:packages
+echo YOUR_TOKEN | docker login ghcr.io -u dseevs --password-stdin
+bash scripts/ghcr-pull-run.sh
+```
+
+**Option C — No registry (build on laptop, same as CI):**
+
+```bash
+bash scripts/docker-local-test.sh
+```
+
+On the **VM**, if the package stays private, set secret `GHCR_PULL_TOKEN` (same PAT) so the deploy job can `docker login` before `docker pull`.
 
 ## One-time VM setup
 

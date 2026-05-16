@@ -20,8 +20,9 @@ Use this after each milestone. If you can answer these, you understand the pipel
 
 ## After GHCR push
 
-- **Where is the image?** `ghcr.io/<owner>/<repo>:latest` and `ghcr.io/<owner>/<repo>:sha-<commit>`.
+- **Where is the image?** `ghcr.io/dseevs/test-ci-cd:latest` and `ghcr.io/dseevs/test-ci-cd:sha-<commit>`.
 - **Rollback?** Pull a `sha-*` tag instead of `latest` on the VM.
+- **`docker pull` denied?** The package is private or you are not logged in. Make it public or run `docker login ghcr.io` (see `docs/DEPLOY.md`).
 
 ## After SSH deploy
 
