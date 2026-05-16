@@ -17,10 +17,10 @@ This document covers GitHub Actions CI/CD, GHCR, and VM deployment. Read it once
 cd /home/user1/NextJS_Olabs/Simulation_changed/Newlayout
 git init
 git branch -M main
-git remote add origin https://github.com/YOUR_USER/YOUR_REPO.git
+git remote add origin https://github.com/dseevs/test-ci-cd.git
 ```
 
-Replace `YOUR_USER/YOUR_REPO` with your empty repository URL.
+This project’s remote: **https://github.com/dseevs/test-ci-cd**
 
 ### 2. GitHub Actions variables
 
@@ -102,7 +102,7 @@ git push -u origin main
 
 Watch **Actions** on GitHub. Both workflows should go green.
 
-Image location: `ghcr.io/YOUR_USER/YOUR_REPO:latest`
+Image location: `ghcr.io/dseevs/test-ci-cd:latest`
 
 ## Rollback
 
