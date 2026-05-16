@@ -1,0 +1,184 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  EC2 instance with Docker running the olabs acetic lab from GHCR.
+  Lab URL after deploy: http://<PublicIp>/acetic/
+
+Parameters:
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: EC2 key pair for SSH (create in EC2 → Key Pairs if needed)
+
+  InstanceType:
+    Type: String
+    Default: t3.small
+    AllowedValues:
+      - t3.micro
+      - t3.small
+      - t3.medium
+    Description: Instance size (t3.small recommended for Next static + nginx)
+
+  AllowedSSHCidr:
+    Type: String
+    Default: 0.0.0.0/0
+    Description: CIDR allowed to SSH (use your home IP/32 in production, e.g. 203.0.113.10/32)
+
+  GhcrImage:
+    Type: String
+    Default: ghcr.io/dseevs/test-ci-cd:latest
+    Description: Container image to run
+
+  GhcrUsername:
+    Type: String
+    Default: dseevs
+    Description: GitHub username for GHCR login (if token provided)
+
+  GhcrToken:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: >
+      Optional GitHub PAT (read:packages). Leave empty if GHCR package is public.
+
+  ContainerName:
+    Type: String
+    Default: olabs-acetic
+
+  AmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id
+    Description: Ubuntu 22.04 AMI (region-aware via SSM)
+
+Conditions:
+  HasGhcrToken: !Not [!Equals [!Ref GhcrToken, ""]]
+
+Resources:
+  LabInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Tags:
+        - Key: Name
+          Value: olabs-acetic-lab-role
+
+  LabInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref LabInstanceRole
+
+  LabSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SSH + HTTP/HTTPS for olabs acetic lab
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref AllowedSSHCidr
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: olabs-acetic-lab-sg
+
+  LabElasticIp:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: olabs-acetic-lab-eip
+
+  LabInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPairName
+      IamInstanceProfile: !Ref LabInstanceProfile
+      SecurityGroupIds:
+        - !Ref LabSecurityGroup
+      UserData:
+        Fn::Base64: !Sub
+          - |
+            #!/bin/bash
+            set -euxo pipefail
+            exec > /var/log/olabs-lab-bootstrap.log 2>&1
+
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update
+            apt-get install -y docker.io curl
+            systemctl enable docker
+            systemctl start docker
+
+            until docker info >/dev/null 2>&1; do sleep 2; done
+
+            GHCR_TOKEN='${GhcrTokenEscaped}'
+            if [ -n "$GHCR_TOKEN" ]; then
+              echo "$GHCR_TOKEN" | docker login ghcr.io -u '${GhcrUsername}' --password-stdin
+            fi
+
+            docker pull '${GhcrImage}'
+
+            docker stop '${ContainerName}' 2>/dev/null || true
+            docker rm '${ContainerName}' 2>/dev/null || true
+
+            docker run -d \
+              --name '${ContainerName}' \
+              --restart unless-stopped \
+              -p 80:80 \
+              '${GhcrImage}'
+
+            echo "Lab bootstrap complete" >> /var/log/olabs-lab-bootstrap.log
+          - GhcrTokenEscaped: !If
+              - HasGhcrToken
+              - !Ref GhcrToken
+              - ""
+      Tags:
+        - Key: Name
+          Value: olabs-acetic-lab
+
+  LabEipAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt LabElasticIp.AllocationId
+      InstanceId: !Ref LabInstance
+
+Outputs:
+  InstanceId:
+    Description: EC2 instance ID
+    Value: !Ref LabInstance
+
+  PublicIp:
+    Description: Elastic IP — use this in the browser
+    Value: !Ref LabElasticIp
+
+  LabUrl:
+    Description: Acetic lab entry URL (HTTP)
+    Value: !Sub "http://${LabElasticIp}/acetic/"
+
+  SshCommand:
+    Description: SSH example (replace ubuntu if your AMI user differs)
+    Value: !Sub "ssh -i YOUR_KEY.pem ubuntu@${LabElasticIp}"
+
+  BootstrapLog:
+    Description: On the instance, check install progress
+    Value: "sudo tail -f /var/log/olabs-lab-bootstrap.log"
+
+  SsmSessionHint:
+    Description: Connect without SSH key via Session Manager (IAM role attached)
+    Value: !Sub "aws ssm start-session --target ${LabInstance} --region YOUR_REGION"

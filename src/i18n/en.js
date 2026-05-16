@@ -1,7 +1,7 @@
 const en = {
 
   // === LANDING PAGE ===
-  launchpage_title: "Study of different properties of acetic acid (Ethanoic acid)",
+  launchpage_title: "chnage Study of different properties of acetic acid (Ethanoic acid)",
   launchpage_obj: "Objective",
   launchpage_obj_text: "To study different properties of acetic acid (ethanoic acid) — its odour, solubility in water, effect on litmus, and reaction with sodium bicarbonate.",
   launchpage_learning_outcome: "Learning Outcome",
