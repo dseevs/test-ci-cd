@@ -1,0 +1,41 @@
+/* Ultra-responsive typography for Theory page (tiny → huge screens) */
+
+.theoryContent {
+  /* Body text smoothly scales: old phones → 4K+ projectors */
+  font-size: clamp(0.88rem, 0.68vw + 0.58rem, 1.5rem);
+  line-height: 1.6;
+}
+
+/* Extra-small devices (very narrow) */
+@media (max-width: 320px) {
+  .theoryContent {
+    font-size: clamp(0.84rem, 2.6vw, 0.95rem);
+    line-height: 1.55;
+  }
+}
+
+.theoryH5 {
+  font-weight: 700;
+  line-height: 1.2;
+  font-size: clamp(1.06rem, 1vw + 0.82rem, 2.05rem);
+}
+
+.theoryH6 {
+  font-weight: 650;
+  line-height: 1.25;
+  font-size: clamp(1rem, 0.86vw + 0.74rem, 1.78rem);
+}
+
+.theoryParagraph {
+  line-height: 1.75;
+}
+
+.theoryList {
+  line-height: 1.7;
+}
+
+/* Space between list items scales slightly on big screens */
+.theoryList > li + li {
+  margin-top: clamp(0.15rem, 0.25vw, 0.4rem);
+}
+

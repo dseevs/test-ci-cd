@@ -1,0 +1,83 @@
+name: Docker publish and deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
+  CONTAINER_NAME: olabs-acetic
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            NEXT_PUBLIC_ALLOWED_PARENT_ORIGINS=${{ vars.NEXT_PUBLIC_ALLOWED_PARENT_ORIGINS }}
+            NEXT_PUBLIC_LAB_EMBED_ONLY=${{ vars.NEXT_PUBLIC_LAB_EMBED_ONLY }}
+            NEXT_PUBLIC_EMBEDDED_SESSION_GUARD=${{ vars.NEXT_PUBLIC_EMBEDDED_SESSION_GUARD }}
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    # Skips until SSH_HOST (and related) secrets are configured in the repo
+    if: github.ref == 'refs/heads/main' && secrets.SSH_HOST != ''
+    steps:
+      - name: Deploy to VM via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          CONTAINER_NAME: ${{ env.CONTAINER_NAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+          GITHUB_ACTOR: ${{ github.repository_owner }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          envs: REGISTRY,IMAGE_NAME,CONTAINER_NAME,GHCR_TOKEN,GITHUB_ACTOR
+          script: |
+            set -e
+            if [ -n "$GHCR_TOKEN" ]; then
+              echo "$GHCR_TOKEN" | docker login "$REGISTRY" -u "$GITHUB_ACTOR" --password-stdin
+            fi
+            docker pull "${IMAGE_NAME}:latest"
+            docker stop "$CONTAINER_NAME" 2>/dev/null || true
+            docker rm "$CONTAINER_NAME" 2>/dev/null || true
+            docker run -d --name "$CONTAINER_NAME" --restart unless-stopped \
+              -p 127.0.0.1:8080:80 \
+              "${IMAGE_NAME}:latest"
+            docker image prune -f

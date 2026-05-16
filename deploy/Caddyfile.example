@@ -1,0 +1,8 @@
+# Example host Caddy config — copy to /etc/caddy/Caddyfile and adjust domain.
+# Container must be running: docker on 127.0.0.1:8080 (see docker-publish workflow).
+
+labs.example.com {
+  handle_path /acetic/* {
+    reverse_proxy 127.0.0.1:8080
+  }
+}

@@ -1,0 +1,16 @@
+node_modules/
+.next/
+build/
+out/
+.env
+.env*.local
+*.log
+.DS_Store
+
+# Large local backups — never commit
+*.zip
+
+# Old unused local package archives (keep 1.0.5.tgz)
+next-english-node-1.0.3.tgz
+next-english-node-1.0.4.tgz
+next-english-node-1.0.5/

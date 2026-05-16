@@ -1,0 +1,20 @@
+node_modules
+.next
+build
+out
+
+.git
+.github
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# large local archives (not needed to build/export the static site)
+*.zip
+backup_*.zip
+next-english-node-1.0.3.tgz
+next-english-node-1.0.4.tgz
+
